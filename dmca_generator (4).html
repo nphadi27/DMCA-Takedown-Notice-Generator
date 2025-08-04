@@ -1,0 +1,140 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMCA Takedown Notice Generator for Artists</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; }
+        input, textarea { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        .note { margin-top: 20px; font-style: italic; color: #555; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h1>DMCA Takedown Notice Generator for Artists</h1>
+    <form id="dmcaForm">
+        <div class="form-group">
+            <label for="fullName">Full Legal Name</label>
+            <input type="text" id="fullName" name="fullName" required>
+        </div>
+        <div class="form-group">
+            <label for="signature">Electronic Signature (Type Your Name)</label>
+            <input type="text" id="signature" name="signature" required>
+        </div>
+        <div class="form-group">
+            <label for="contactInfo">Contact Information (Email, Phone, Address)</label>
+            <textarea id="contactInfo" name="contactInfo" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="workDescription">Description of Copyrighted Work</label>
+            <textarea id="workDescription" name="workDescription" required></textarea>
+        </div>
+        <div class="form-group">
+            <label for="originalUrl">URL of Original Work (Optional)</label>
+            <input type="url" id="originalUrl" name="originalUrl">
+        </div>
+        <div class="form-group">
+            <label for="infringingUrl">URL of Infringing Content</label>
+            <input type="url" id="infringingUrl" name="infringingUrl" required>
+        </div>
+        <button type="submit">Generate DMCA Notice (PDF)</button>
+    </form>
+    <div class="note">
+        <p><strong>Note:</strong> Clicking "Generate DMCA Notice" will open the DMCA notice as a PDF in a new browser tab. You can copy the text from the PDF or save it manually. Send the notice to the designated DMCA agent of the website or hosting provider. Find their contact information in the website’s Terms of Service or via WhoIsHostingThis.com.</p>
+        <p><strong>Disclaimer:</strong> Ensure all information is accurate, as false claims may result in legal liability. Consult a legal professional if needed.</p>
+    </div>
+
+    <script>
+        document.getElementById('dmcaForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const fullName = document.getElementById('fullName').value;
+            const signature = document.getElementById('signature').value;
+            const contactInfo = document.getElementById('contactInfo').value;
+            const workDescription = document.getElementById('workDescription').value;
+            const originalUrl = document.getElementById('originalUrl').value;
+            const infringingUrl = document.getElementById('infringingUrl').value;
+            const currentDate = "August 4, 2025";
+
+            const originalUrlText = originalUrl ? `The original work can be found at: ${originalUrl}.` : '';
+
+            const noticeText = `DMCA Takedown Notice
+${currentDate}
+
+To Whom It May Concern,
+
+I, ${fullName}, am submitting this notice pursuant to the Digital Millennium Copyright Act (17 U.S.C. § 512) to request the immediate removal of infringing material from your service.
+
+1. Identification of Copyrighted Work: The copyrighted work that has been infringed is: ${workDescription}. ${originalUrlText}
+
+2. Identification of Infringing Material: The infringing material is located at the following URL(s): ${infringingUrl}. This material has been copied and used without my permission.
+
+3. Contact Information: ${contactInfo}
+
+4. Good Faith Statement: I have a good faith belief that the use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.
+
+5. Accuracy Statement: Under penalty of perjury, I certify that the information in this notification is accurate and that I am the owner, or authorized to act on behalf of the owner, of the exclusive copyright that is allegedly infringed.
+
+6. Electronic Signature: ${signature}
+
+Please remove or disable access to the infringing material promptly and confirm receipt of this notice. For any questions, please contact me using the information provided above.
+
+Sincerely,
+${fullName}`;
+
+            // Generate PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFont('Courier');
+            doc.setFontSize(12);
+            const splitText = doc.splitTextToSize(noticeText, 180);
+            doc.text(splitText, 10, 10);
+            const pdfUrl = URL.createObjectURL(doc.output('blob'));
+            window.open(pdfUrl, '_blank');
+        });
+    </script>
+</head>
+</html>
